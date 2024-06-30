@@ -8,9 +8,9 @@ library StringUtils {
     /// @param s The string to measure the length of
     /// @return The length of the input string
     function strlen(string memory s) internal pure returns (uint) {
-        uint len;
-        uint i = 0;
-        uint bytelength = bytes(s).length;
+        uint256 len;
+        uint256 i = 0;
+        uint256 bytelength = bytes(s).length;
         for (len = 0; i < bytelength; len++) {
             bytes1 b = bytes(s)[i];
             if (b < 0x80) {
