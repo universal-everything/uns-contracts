@@ -15,6 +15,18 @@ import "@lukso/lsp-smart-contracts/contracts/LSP1UniversalReceiver/LSP1Constants
 /// No need for a renew function as this controller is intended to run for less
 /// than a month, and names are reserved for a minimum duration of one year
 contract ReservedNamesController is Ownable {
+    /// @notice Emitted when a name is reserved
+    /// @param name The ENS name registered
+    /// @param label The label hash of the name
+    /// @param owner The owner of the name after registration
+    /// @param expires The expiration time of the registration
+    event NameReserved(
+        string name,
+        bytes32 indexed label,
+        address indexed owner,
+        uint256 expires
+    );
+
     /// @dev The address of the LYXRegistrar contract
     LYXRegistrar public immutable LYX_Registrar;
 
@@ -42,25 +54,27 @@ contract ReservedNamesController is Ownable {
     /// names rather than to put them into active use.
     /// @param name The name to be reserved
     /// @param owner_ The address that will own the reserved name
+    /// @param _resolver The address of the resolver
     /// @param duration The duration for which the name is reserved
     function reserve(
         string memory name,
         address owner_,
-        uint256 duration
+        uint256 duration,
+        address _resolver,
+        bytes[] calldata resolverData
     ) external onlyOwner {
         bytes32 label = keccak256(bytes(name));
-        bytes32[] memory resolverDataKeys;
-        bytes[] memory resolverDataValues;
 
         LYX_Registrar.register(
             label,
             owner_,
             "",
-            address(0),
-            resolverDataKeys,
-            resolverDataValues,
+            _resolver,
+            resolverData,
             duration
         );
+
+        emit NameReserved(name, label, owner_, block.timestamp + duration);
 
         LYX_Registrar.setDataForTokenId(
             label,
@@ -74,26 +88,33 @@ contract ReservedNamesController is Ownable {
     /// Name information is not set as the primary purpose is to reserve
     /// names rather than to put them into active use.
     /// @param names An array of names to be reserved
-    /// @param owner_ The address that will own the reserved names
+    /// @param owner_ The addresses that will own the reserved names
+    /// @param resolvers The addresses of resolvers for the reserved names
     /// @param duration The duration for which each name is reserved
     function reserve(
         string[] memory names,
-        address owner_,
-        uint256 duration
+        address[] memory owner_,
+        uint256[] memory duration,
+        address[] memory resolvers,
+        bytes[][] calldata resolverData
     ) external onlyOwner {
-        bytes32[] memory resolverDataKeys;
-        bytes[] memory resolverDataValues;
         bytes32 label;
         for (uint256 i = 0; i < names.length; i++) {
             label = keccak256(bytes(names[i]));
             LYX_Registrar.register(
                 label,
-                owner_,
+                owner_[i],
                 "",
-                address(0),
-                resolverDataKeys,
-                resolverDataValues,
-                duration
+                resolvers[i],
+                resolverData[i],
+                duration[i]
+            );
+
+            emit NameReserved(
+                names[i],
+                label,
+                owner_[i],
+                block.timestamp + duration[i]
             );
 
             LYX_Registrar.setDataForTokenId(

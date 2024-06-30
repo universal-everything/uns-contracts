@@ -92,6 +92,8 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
         _nftDescriptor = nftdescriptor_;
     }
 
+    // Admin Functions
+
     /// @return The list of controllers
     function getControllers() external view returns (address[] memory) {
         return _controllers.values();
@@ -101,6 +103,13 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
     /// @return True if the address is a controller
     function isController(address _addr) external view returns (bool) {
         return _controllers.contains(_addr);
+    }
+
+    /// @notice Retrieves the current changeable gas value.
+    /// @dev Returns the current value of the _changeableGasValue variable.
+    /// @return The current changeable gas value.
+    function getChangeableGasValue() public view returns (uint256) {
+        return _changeableGasValue;
     }
 
     /// @notice Authorizes a controller, who can register and renew domains.
@@ -126,6 +135,20 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
         UNS_Registry.setResolver(LYX_NAME_HASH, resolver);
     }
 
+    /**
+     * @notice Set the resolver for the TLD this registrar manages (.LYX)
+     * @dev Can only be called by the contract owner
+     * @param changeableGasValue_ The address of the resolver to be set
+     */
+    function setMaxBurnGas(
+        uint256 changeableGasValue_
+    ) external virtual onlyOwner {
+        _changeableGasValue = changeableGasValue_;
+        emit MaxBurnGasChanged(changeableGasValue_);
+    }
+
+    // NFT Description functions
+
     /// @notice Returns the address of the NFT metadata descriptor contract.
     /// @return The address of the NFT descriptor contract.
     function getNftDescriptor() external view returns (address) {
@@ -138,21 +161,25 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
         return _nftDescriptorSetter;
     }
 
-    /// @notice Retrieves the timestamp of when a name was marked for unregistering.
-    /// @dev Returns the unregister timestamp for a given labelHash.
-    /// @param labelHash The hash of the label to query the unregister timestamp for.
-    /// @return The timestamp of when the name associated with the given labelHash was marked for burning.
-    function getUnregisterTimestamp(
-        bytes32 labelHash
-    ) public view returns (uint256) {
-        return _unregisterTimestamp[labelHash];
+    /// @notice Changes the NFT descriptor to a new address.
+    /// @dev Can only be called by the current NFT descriptor setter.
+    /// @param _newDescriptor The address of the new NFT descriptor.
+    function changeNFTDescriptor(address _newDescriptor) external {
+        if (msg.sender != _nftDescriptorSetter) revert NotNFTDescriptorSetter();
+
+        emit NFTDescriptorChanged(_nftDescriptor, _newDescriptor);
+        _nftDescriptor = _newDescriptor;
     }
 
-    /// @notice Retrieves the current changeable gas value.
-    /// @dev Returns the current value of the _changeableGasValue variable.
-    /// @return The current changeable gas value.
-    function getChangeableGasValue() public view returns (uint256) {
-        return _changeableGasValue;
+    /// @notice Changes the NFT descriptor setter to a new address.
+    /// @dev Can only be called by the current NFT descriptor setter.
+    /// @param _newSetter The address of the new NFT descriptor setter.
+    function changeNFTDescriptorSetter(address _newSetter) external {
+        address oldSetter = _nftDescriptorSetter;
+        if (msg.sender != oldSetter) revert NotNFTDescriptorSetterSetter();
+
+        _nftDescriptorSetter = _newSetter;
+        emit NFTDescriptorSetterChanged(oldSetter, _newSetter);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -181,6 +208,16 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
         return _expiries[nameLabelHash] + GRACE_PERIOD < block.timestamp;
     }
 
+    /// @notice Retrieves the timestamp of when a name was marked for unregistering.
+    /// @dev Returns the unregister timestamp for a given labelHash.
+    /// @param labelHash The hash of the label to query the unregister timestamp for.
+    /// @return The timestamp of when the name associated with the given labelHash was marked for burning.
+    function getUnregisterTimestamp(
+        bytes32 labelHash
+    ) public view returns (uint256) {
+        return _unregisterTimestamp[labelHash];
+    }
+
     /// @notice Register a name
     /// @dev This function registers a name and modifies the registry
     /// @param nameLabelHash The token nameLabelHash (keccak256 of the label)
@@ -192,8 +229,7 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
         address _owner,
         bytes memory ownerData,
         address _resolver,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues,
+        bytes[] calldata resolverData,
         uint256 duration
     ) external override onlyController returns (uint256) {
         if (!available(nameLabelHash)) revert NameNotAvailable(nameLabelHash);
@@ -201,7 +237,7 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
         _expiries[nameLabelHash] = block.timestamp + duration;
         delete _unregisterTimestamp[nameLabelHash];
 
-        if (resolverDataKeys.length == 0 || resolverDataValues.length == 0) {
+        if (resolverData.length == 0) {
             UNS_Registry.setSubNameRecord(
                 LYX_NAME_HASH,
                 nameLabelHash,
@@ -216,8 +252,7 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
                 _owner,
                 _resolver,
                 0,
-                resolverDataKeys,
-                resolverDataValues
+                resolverData
             );
         }
 
@@ -227,12 +262,7 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
         // Minting the name after burning it
         _mint(_owner, nameLabelHash, true, ownerData);
 
-        emit NameRegistered(
-            nameLabelHash,
-            _owner,
-            _resolver,
-            block.timestamp + duration
-        );
+        emit NameRegistered(nameLabelHash, _owner, block.timestamp + duration);
 
         return block.timestamp + duration;
     }
@@ -300,39 +330,6 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
     ) internal view virtual override returns (bool) {
         if (_expiries[tokenId] <= block.timestamp) revert NameExpired(tokenId);
         return super._isOperatorOrOwner(caller, tokenId);
-    }
-
-    /**
-     * @notice Set the resolver for the TLD this registrar manages (.LYX)
-     * @dev Can only be called by the contract owner
-     * @param changeableGasValue_ The address of the resolver to be set
-     */
-    function setMaxBurnGas(
-        uint256 changeableGasValue_
-    ) external virtual onlyOwner {
-        _changeableGasValue = changeableGasValue_;
-        emit MaxBurnGasChanged(changeableGasValue_);
-    }
-
-    /// @notice Changes the NFT descriptor to a new address.
-    /// @dev Can only be called by the current NFT descriptor setter.
-    /// @param _newDescriptor The address of the new NFT descriptor.
-    function changeNFTDescriptor(address _newDescriptor) external {
-        if (msg.sender != _nftDescriptorSetter) revert NotNFTDescriptorSetter();
-
-        emit NFTDescriptorChanged(_nftDescriptor, _newDescriptor);
-        _nftDescriptor = _newDescriptor;
-    }
-
-    /// @notice Changes the NFT descriptor setter to a new address.
-    /// @dev Can only be called by the current NFT descriptor setter.
-    /// @param _newSetter The address of the new NFT descriptor setter.
-    function changeNFTDescriptorSetter(address _newSetter) external {
-        address oldSetter = _nftDescriptorSetter;
-        if (msg.sender != oldSetter) revert NotNFTDescriptorSetterSetter();
-
-        _nftDescriptorSetter = _newSetter;
-        emit NFTDescriptorSetterChanged(oldSetter, _newSetter);
     }
 
     /// @dev override the function to allow setting the LYX_REGISTRAR_TOKENID_NAME by anyone

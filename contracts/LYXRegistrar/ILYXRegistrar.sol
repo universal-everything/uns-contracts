@@ -22,7 +22,6 @@ interface ILYXRegistrar {
     event NameRegistered(
         bytes32 indexed id,
         address indexed owner,
-        address resolver,
         uint256 expires
     );
 
@@ -101,8 +100,7 @@ interface ILYXRegistrar {
         address owner,
         bytes memory ownerData,
         address resolver,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues,
+        bytes[] calldata resolverData,
         uint256 duration
     ) external returns (uint256);
 
