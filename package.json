@@ -9,6 +9,7 @@
     "solhint": "^4.1.1"
   },
   "dependencies": {
+    "@ensdomains/buffer": "^0.1.1",
     "@lukso/lsp-smart-contracts": "^0.14.0"
   }
 }
