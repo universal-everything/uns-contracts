@@ -15,14 +15,14 @@ contract UNSRegistry is IUNSRegistry {
     mapping(bytes32 => Record) internal _records;
 
     /// @notice Mapping of addresses to their operators and the operator status.
-    mapping(address => mapping(address => bool)) operators;
+    mapping(address => mapping(address => bool)) private _operators;
 
     /// @dev Permits modifications only by the owner of the specified name.
     /// @param nameHash The nameHash of the name (according to the NameHash algorithm).
     modifier authorised(bytes32 nameHash) {
         address _owner = _records[nameHash].owner;
         bool isOperatorOrOwner = _owner == msg.sender ||
-            operators[_owner][msg.sender];
+            _operators[_owner][msg.sender];
 
         if (!isOperatorOrOwner) {
             revert UNSRegistry_NotAuthorized(nameHash, _owner, msg.sender);
@@ -84,7 +84,7 @@ contract UNSRegistry is IUNSRegistry {
         address operator,
         bool approved
     ) external virtual {
-        operators[msg.sender][operator] = approved;
+        _operators[msg.sender][operator] = approved;
         emit ApprovalForAll(msg.sender, operator, approved);
     }
 
@@ -97,7 +97,7 @@ contract UNSRegistry is IUNSRegistry {
         address _owner,
         address operator
     ) external view virtual returns (bool) {
-        return operators[_owner][operator];
+        return _operators[_owner][operator];
     }
 
     //

@@ -4,9 +4,6 @@ pragma solidity >=0.4.24;
 /// @title Utils Library
 /// @notice Provides utility functions for string manipulation
 library StringUtils {
-    bytes32 constant lookup =
-        0x3031323334353637383961626364656600000000000000000000000000000000;
-
     /// @dev Returns the length of a given string
     /// @param s The string to measure the length of
     /// @return The length of the input string

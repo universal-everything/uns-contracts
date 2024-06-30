@@ -3,7 +3,6 @@ pragma solidity >=0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "../../../Utils/StringUtils.sol";
 import "../../LYXRegistrar.sol";
 import "../../LYXRegistrarConstants.sol";
 import "../../../ReverseRegistrar/IReverseRegistrar.sol";
@@ -16,8 +15,6 @@ import "@lukso/lsp-smart-contracts/contracts/LSP1UniversalReceiver/LSP1Constants
 /// No need for a renew function as this controller is intended to run for less
 /// than a month, and names are reserved for a minimum duration of one year
 contract ReservedNamesController is Ownable {
-    using StringUtils for *;
-
     /// @dev The address of the LYXRegistrar contract
     LYXRegistrar public immutable LYX_Registrar;
 

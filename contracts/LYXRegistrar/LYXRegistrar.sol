@@ -32,6 +32,9 @@ import "./LYXRegistrarErrors.sol";
  * the ability to add or remove controllers, register and renew names, and
  * manage name ownership. The registered names will be LSP8 assets that can be
  * transferred and traded.
+ *
+ * @dev The getter functions such as `balanceOf`, `tokenIdsOf`, and `getOperatorsOf` does not account for expired labels.
+ * If a label has expired, it will still be included in the returned values.
  */
 contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -196,38 +199,33 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
         if (!available(nameLabelHash)) revert NameNotAvailable(nameLabelHash);
 
         _expiries[nameLabelHash] = block.timestamp + duration;
+        delete _unregisterTimestamp[nameLabelHash];
+
+        if (resolverDataKeys.length == 0 || resolverDataValues.length == 0) {
+            UNS_Registry.setSubNameRecord(
+                LYX_NAME_HASH,
+                nameLabelHash,
+                _owner,
+                _resolver,
+                0
+            );
+        } else {
+            UNS_Registry.setSubNameRecordWithResolverData(
+                LYX_NAME_HASH,
+                nameLabelHash,
+                _owner,
+                _resolver,
+                0,
+                resolverDataKeys,
+                resolverDataValues
+            );
+        }
 
         // Name was previously owned, and expired
         if (_exists(nameLabelHash)) _burn(nameLabelHash, bytes("Expired"));
 
         // Minting the name after burning it
         _mint(_owner, nameLabelHash, true, ownerData);
-
-        if (_resolver == address(0)) {
-            UNS_Registry.setSubNameOwner(LYX_NAME_HASH, nameLabelHash, _owner);
-        } else {
-            if (
-                resolverDataKeys.length == 0 || resolverDataValues.length == 0
-            ) {
-                UNS_Registry.setSubNameRecord(
-                    LYX_NAME_HASH,
-                    nameLabelHash,
-                    _owner,
-                    _resolver,
-                    0
-                );
-            } else {
-                UNS_Registry.setSubNameRecordWithResolverData(
-                    LYX_NAME_HASH,
-                    nameLabelHash,
-                    _owner,
-                    _resolver,
-                    0,
-                    resolverDataKeys,
-                    resolverDataValues
-                );
-            }
-        }
 
         emit NameRegistered(
             nameLabelHash,
@@ -248,8 +246,7 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
         uint256 duration
     ) external override onlyController returns (uint256) {
         // Name must be registered here or in grace period
-        if (_expiries[nameLabelHash] + GRACE_PERIOD <= block.timestamp)
-            revert RenewalPeriodEnded(nameLabelHash);
+        if (available(nameLabelHash)) revert RenewalPeriodEnded(nameLabelHash);
         _expiries[nameLabelHash] += duration;
         emit NameRenewed(nameLabelHash, _expiries[nameLabelHash]);
         return _expiries[nameLabelHash];
@@ -258,10 +255,6 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
     /// @notice Unregister a name and sets its expiration to the current timestamp
     /// @param nameLabelHash The token nameLabelHash (keccak256 of the label) to unregister
     function unregister(bytes32 nameLabelHash) external {
-        // Check if the name is currently registered
-        if (_expiries[nameLabelHash] <= block.timestamp)
-            revert NameExpired(nameLabelHash);
-
         if (!_isOperatorOrOwner(msg.sender, nameLabelHash))
             revert LSP8NotTokenOperator(nameLabelHash, msg.sender);
 
@@ -324,7 +317,7 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
     /// @notice Changes the NFT descriptor to a new address.
     /// @dev Can only be called by the current NFT descriptor setter.
     /// @param _newDescriptor The address of the new NFT descriptor.
-    function changeNFTDescriptor(address _newDescriptor) public {
+    function changeNFTDescriptor(address _newDescriptor) external {
         if (msg.sender != _nftDescriptorSetter) revert NotNFTDescriptorSetter();
 
         emit NFTDescriptorChanged(_nftDescriptor, _newDescriptor);
@@ -334,7 +327,7 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
     /// @notice Changes the NFT descriptor setter to a new address.
     /// @dev Can only be called by the current NFT descriptor setter.
     /// @param _newSetter The address of the new NFT descriptor setter.
-    function changeNFTDescriptorSetter(address _newSetter) public {
+    function changeNFTDescriptorSetter(address _newSetter) external {
         address oldSetter = _nftDescriptorSetter;
         if (msg.sender != oldSetter) revert NotNFTDescriptorSetterSetter();
 
@@ -375,7 +368,7 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
         bytes32[] memory tokenIds,
         bytes32[] memory dataKeys,
         bytes[] memory dataValues
-    ) public virtual override onlyOwner {
+    ) public virtual override {
         if (
             tokenIds.length != dataKeys.length ||
             dataKeys.length != dataValues.length
@@ -427,6 +420,7 @@ contract LYXRegistrar is LSP8IdentifiableDigitalAsset, ILYXRegistrar {
     ) internal virtual override {
         if (from != address(0) && to != address(0)) {
             UNS_Registry.setSubNameOwner(LYX_NAME_HASH, tokenId, to);
+            delete _unregisterTimestamp[tokenId];
         }
     }
 

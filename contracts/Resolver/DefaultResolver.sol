@@ -9,7 +9,7 @@ import "./DefaultResolverErrors.sol";
 /// @notice A simple resolver allowing the owner of a name to set its address and manage data.
 contract DefaultResolver is IDefaultResolver {
     /// @notice The UNS Registry contract address.
-    IUNSRegistry public UNS_Registry;
+    IUNSRegistry public immutable UNS_Registry;
 
     /// @dev Stores the version of data for a name.
     mapping(bytes32 => uint256) private _dataVersion;
