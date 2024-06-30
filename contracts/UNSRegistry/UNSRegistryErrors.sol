@@ -15,3 +15,13 @@ error UNSRegistry_NotAuthorized(
 /// @notice This error indicates that one of the calls in a batch execution has failed.
 /// @param index The index of the call in the batch that failed.
 error UNSRegistry_BatchCallFailed(uint256 index);
+
+/// @notice Error thrown when setting resolver data for unauthorized name.
+/// @param nameHash The nameHash of the name (according to the NameHash algorithm).
+/// @param _resolver The address of the current resolver for the name.
+/// @param resolverData The resolver data to be set in the resolver.
+error UNSRegistry_ChangingResolverDataDisallowed(
+    bytes32 nameHash,
+    address _resolver,
+    bytes resolverData
+);

@@ -3,7 +3,9 @@ pragma solidity ^0.8.0;
 
 // interfaces
 import {IUNSRegistry} from "./IUNSRegistry.sol";
-import {IDefaultResolver} from "../Resolver/IDefaultResolver.sol";
+
+// libraries
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 // errors
 import "./UNSRegistryErrors.sol";
@@ -37,7 +39,7 @@ contract UNSRegistry is IUNSRegistry {
         _records[bytes32(0)] = Record({
             owner: rootOwner,
             resolver: address(0),
-            ttl: type(uint64).max
+            ttl: 0
         });
     }
 
@@ -146,18 +148,27 @@ contract UNSRegistry is IUNSRegistry {
     /// @notice Returns the resolver's data specified for a name.
     /// @dev Retrieves the resolver's data attached to it from the record of the given name.
     /// @param nameHash The nameHash of the name (according to the NameHash algorithm).
-    /// @param resolverDataKeys An array of data keys to be retreived from the resolver for the name.
-    /// @return The resolverDataValues.
+    /// @param _resolverData The data to be retreived from the resolver for the name.
+    /// @return _resolver The address of the resolver
+    /// @return results The resolverDataValues.
     function resolverData(
         bytes32 nameHash,
-        bytes32[] memory resolverDataKeys
-    ) external view returns (bytes[] memory) {
-        address _resolver = _records[nameHash].resolver;
-        return
-            IDefaultResolver(_resolver).getDataBatch(
-                nameHash,
-                resolverDataKeys
+        bytes[] calldata _resolverData
+    ) external view returns (address _resolver, bytes[] memory results) {
+        _resolver = _records[nameHash].resolver;
+        for (uint256 i = 0; i < _resolverData.length; i++) {
+            (bool success, bytes memory returnedData) = _resolver.staticcall(
+                _resolverData[i]
             );
+
+            Address.verifyCallResult(
+                success,
+                returnedData,
+                "UNSRegistry: Getting resolver data failed"
+            );
+
+            results[i] = returnedData;
+        }
     }
 
     //
@@ -177,6 +188,8 @@ contract UNSRegistry is IUNSRegistry {
         uint64 _ttl
     ) external authorised(nameHash) {
         _setOwner(nameHash, _owner);
+        emit OwnerChanged(nameHash, _owner);
+
         _setResolver(nameHash, _resolver);
         _setTTL(nameHash, _ttl);
     }
@@ -187,26 +200,21 @@ contract UNSRegistry is IUNSRegistry {
     /// @param _owner The address of the new owner.
     /// @param _resolver The address of the resolver.
     /// @param _ttl The time to live (TTL) for the name.
-    /// @param resolverDataKeys An array of data keys to set for the name in the resolver.
-    /// @param resolverDataValues An array of values corresponding to the data keys for the name.
+    /// @param _resolverData The data to be set in the resolver for a name.
     function setRecordWithResolverData(
         bytes32 nameHash,
         address _owner,
         address _resolver,
         uint64 _ttl,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata _resolverData
     ) external authorised(nameHash) {
         _setOwner(nameHash, _owner);
+        emit OwnerChanged(nameHash, _owner);
+
         _setResolver(nameHash, _resolver);
         _setTTL(nameHash, _ttl);
 
-        _setResolverData(
-            nameHash,
-            _resolver,
-            resolverDataKeys,
-            resolverDataValues
-        );
+        _setResolverData(nameHash, _resolver, _resolverData);
     }
 
     /// @notice Updates the owner address for the specified name.
@@ -217,6 +225,7 @@ contract UNSRegistry is IUNSRegistry {
         address newOwner
     ) external authorised(nameHash) {
         _setOwner(nameHash, newOwner);
+        emit OwnerChanged(nameHash, newOwner);
     }
 
     /// @notice Updates the resolver address for the specified name.
@@ -241,20 +250,13 @@ contract UNSRegistry is IUNSRegistry {
 
     /// @notice Sets resolver data.
     /// @param nameHash The nameHash of the name (according to the NameHash algorithm) to update the resolver of and resolver data.
-    /// @param resolverDataKeys An array of data keys to set for the name in the resolver.
-    /// @param resolverDataValues An array of values corresponding to the data keys for the name.
+    /// @param _resolverData An array of data keys to set for the name in the resolver.
     function setResolverData(
         bytes32 nameHash,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata _resolverData
     ) external authorised(nameHash) {
         address _resolver = _records[nameHash].resolver;
-        _setResolverData(
-            nameHash,
-            _resolver,
-            resolverDataKeys,
-            resolverDataValues
-        );
+        _setResolverData(nameHash, _resolver, _resolverData);
     }
 
     //
@@ -279,6 +281,8 @@ contract UNSRegistry is IUNSRegistry {
             abi.encodePacked(parentNameHash, subNameLabelHash)
         );
         _setOwner(subNameHash, _owner);
+        emit SubnNameOwnerChanged(parentNameHash, subNameLabelHash, _owner);
+
         _setResolver(subNameHash, _resolver);
         _setTTL(subNameHash, _ttl);
     }
@@ -290,30 +294,25 @@ contract UNSRegistry is IUNSRegistry {
     /// @param _owner The address of the new owner for the subname.
     /// @param _resolver The address of the resolver for the subname.
     /// @param _ttl The time to live (TTL) for the subname.
-    /// @param resolverDataKeys An array of data keys to set for the subname in the resolver.
-    /// @param resolverDataValues An array of values corresponding to the data keys for the subname.
+    /// @param _resolverData The data to be set for the subname in the resolver.
     function setSubNameRecordWithResolverData(
         bytes32 parentNameHash,
         bytes32 subNameLabelHash,
         address _owner,
         address _resolver,
         uint64 _ttl,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata _resolverData
     ) external authorised(parentNameHash) {
         bytes32 subNameHash = keccak256(
             abi.encodePacked(parentNameHash, subNameLabelHash)
         );
         _setOwner(subNameHash, _owner);
+        emit SubnNameOwnerChanged(parentNameHash, subNameLabelHash, _owner);
+
         _setResolver(subNameHash, _resolver);
         _setTTL(subNameHash, _ttl);
 
-        _setResolverData(
-            subNameHash,
-            _resolver,
-            resolverDataKeys,
-            resolverDataValues
-        );
+        _setResolverData(subNameHash, _resolver, _resolverData);
     }
 
     /// @notice Sets a new owner for a subname.
@@ -329,6 +328,7 @@ contract UNSRegistry is IUNSRegistry {
             abi.encodePacked(parentNameHash, subNameLabelHash)
         );
         _setOwner(subNameHash, newOwner);
+        emit SubnNameOwnerChanged(parentNameHash, subNameLabelHash, newOwner);
     }
 
     /// @notice Sets a new resolver for a subname.
@@ -364,24 +364,17 @@ contract UNSRegistry is IUNSRegistry {
     /// @notice Sets resolver data.
     /// @param parentNameHash The nameHash of the parent name (according to the NameHash algorithm) to set a subname for.
     /// @param subNameLabelHash The label hash for the subname.
-    /// @param resolverDataKeys An array of data keys to set for the subname in the resolver.
-    /// @param resolverDataValues An array of values corresponding to the data keys for the subname.
+    /// @param _resolverData The data to be set for the subname in the resolver.
     function setSubNameResolverData(
         bytes32 parentNameHash,
         bytes32 subNameLabelHash,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata _resolverData
     ) external authorised(parentNameHash) {
         bytes32 subNameHash = keccak256(
             abi.encodePacked(parentNameHash, subNameLabelHash)
         );
         address _resolver = _records[subNameHash].resolver;
-        _setResolverData(
-            subNameHash,
-            _resolver,
-            resolverDataKeys,
-            resolverDataValues
-        );
+        _setResolverData(subNameHash, _resolver, _resolverData);
     }
 
     /// @dev Sets the owner of the specified name.
@@ -390,7 +383,6 @@ contract UNSRegistry is IUNSRegistry {
     /// @param newOwner The address of the new owner.
     function _setOwner(bytes32 nameHash, address newOwner) internal {
         _records[nameHash].owner = newOwner;
-        emit OwnerChanged(nameHash, newOwner);
     }
 
     /// @dev Sets the resolver of the specified name.
@@ -414,19 +406,31 @@ contract UNSRegistry is IUNSRegistry {
     /// @dev Sets the resolver data in the resolver address.
     /// @param nameHash The nameHash of the name (according to the NameHash algorithm) to update the TTL of.
     /// @param _resolver The address of the resolver.
-    /// @param resolverDataKeys An array of data keys to set for the subname in the resolver.
-    /// @param resolverDataValues An array of values corresponding to the data keys for the subname.
+    /// @param _resolverData The data to be set in the resolver of the name.
     function _setResolverData(
         bytes32 nameHash,
         address _resolver,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata _resolverData
     ) internal {
-        IDefaultResolver(_resolver).setDataBatch(
-            nameHash,
-            resolverDataKeys,
-            resolverDataValues
-        );
+        for (uint256 i = 0; i < _resolverData.length; i++) {
+            if (bytes32(_resolverData[i][4:36]) != nameHash) {
+                revert UNSRegistry_ChangingResolverDataDisallowed(
+                    nameHash,
+                    _resolver,
+                    _resolverData[i]
+                );
+            }
+
+            (bool success, bytes memory returnedData) = _resolver.call(
+                _resolverData[i]
+            );
+
+            Address.verifyCallResult(
+                success,
+                returnedData,
+                "UNSRegistry: Setting resolver data failed"
+            );
+        }
     }
 
     //////////////////////////////////////////////////////////////////////

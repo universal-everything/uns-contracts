@@ -7,20 +7,26 @@ interface IUNSRegistry {
     /// @notice Emitted when the owner of a name is changed.
     /// @param nameHash The nameHash that was updated.
     /// @param newOwner The new owner of the name.
-    event OwnerChanged(bytes32 indexed nameHash, address indexed newOwner);
+    event OwnerChanged(bytes32 indexed nameHash, address newOwner);
 
     /// @notice Emitted when the resolver for a name is changed.
     /// @param nameHash The nameHash that was updated.
     /// @param newResolver The new resolver of the name.
-    event ResolverChanged(
-        bytes32 indexed nameHash,
-        address indexed newResolver
-    );
+    event ResolverChanged(bytes32 indexed nameHash, address newResolver);
 
     /// @notice Emitted when the TTL of a name is changed.
     /// @param nameHash The nameHash that was updated.
     /// @param newTTL The updated Time to Live (TTL) value.
     event TTLChanged(bytes32 indexed nameHash, uint64 newTTL);
+
+    /// @notice Emitted when the owner of a name is changed.
+    /// @param nameHash The nameHash that was updated.
+    /// @param newOwner The new owner of the name.
+    event SubnNameOwnerChanged(
+        bytes32 indexed nameHash,
+        bytes32 indexed label,
+        address newOwner
+    );
 
     /// @notice Emitted when the owner of a name approves or revokes a new operator
     /// @param owner The address of the owner granting or revoking permission
@@ -101,12 +107,12 @@ interface IUNSRegistry {
     /// @notice Returns the address of the resolver with the data specified for a name.
     /// @dev Retrieves the resolver's address and the data attached to it from the record of the given name.
     /// @param nameHash The nameHash of the name (according to the NameHash algorithm).
-    /// @param resolverDataKeys An array of data keys to be retreived from the resolver for the name.
+    /// @param _resolverData The data to set in the resolver.
     /// @return The resolverDataValues.
     function resolverData(
         bytes32 nameHash,
-        bytes32[] memory resolverDataKeys
-    ) external view returns (bytes[] memory);
+        bytes[] calldata _resolverData
+    ) external view returns (address, bytes[] memory);
 
     //
     // --------- Name Setter Functions ----------
@@ -131,15 +137,13 @@ interface IUNSRegistry {
     /// @param _owner The address of the new owner.
     /// @param _resolver The address of the resolver.
     /// @param _ttl The time to live (TTL) for the name.
-    /// @param resolverDataKeys An array of data keys to set for the name in the resolver.
-    /// @param resolverDataValues An array of values corresponding to the data keys for the name.
+    /// @param _resolverData The data to set in the resolver.
     function setRecordWithResolverData(
         bytes32 nameHash,
         address _owner,
         address _resolver,
         uint64 _ttl,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata _resolverData
     ) external;
 
     /// @notice Updates the owner address for the specified name.
@@ -159,12 +163,10 @@ interface IUNSRegistry {
 
     /// @notice Updates the resolver address for the specified name and sets resolver data.
     /// @param nameHash The nameHash of the name (according to the NameHash algorithm) to update the resolver of and resolver data.
-    /// @param resolverDataKeys An array of data keys to set for the name in the resolver.
-    /// @param resolverDataValues An array of values corresponding to the data keys for the name.
+    /// @param _resolverData The data to set in the resolver.
     function setResolverData(
         bytes32 nameHash,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata _resolverData
     ) external;
 
     //
@@ -193,16 +195,14 @@ interface IUNSRegistry {
     /// @param _owner The address of the new owner for the subname.
     /// @param _resolver The address of the resolver for the subname.
     /// @param _ttl The time to live (TTL) for the subname.
-    /// @param resolverDataKeys An array of data keys to set for the subname in the resolver.
-    /// @param resolverDataValues An array of values corresponding to the data keys for the subname.
+    /// @param _resolverData The data to set in the resolver.
     function setSubNameRecordWithResolverData(
         bytes32 parentNameHash,
         bytes32 subNameLabelHash,
         address _owner,
         address _resolver,
         uint64 _ttl,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata _resolverData
     ) external;
 
     /// @notice Sets a new owner for a subname.
@@ -238,12 +238,10 @@ interface IUNSRegistry {
     /// @notice Updates the resolver address for a subname and sets resolver data.
     /// @param parentNameHash The nameHash of the parent name (according to the NameHash algorithm) to set a subname for.
     /// @param subNameLabelHash The label hash for the subname.
-    /// @param resolverDataKeys An array of data keys to set for the subname in the resolver.
-    /// @param resolverDataValues An array of values corresponding to the data keys for the subname.
+    /// @param _resolverData The data to set on the resolver
     function setSubNameResolverData(
         bytes32 parentNameHash,
         bytes32 subNameLabelHash,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata _resolverData
     ) external;
 }
