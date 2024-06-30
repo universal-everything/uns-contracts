@@ -893,6 +893,32 @@ contract LYXRegistrarTest is Test {
         }
     }
 
+    function testNonOwnerCanSetLSP8TOKENIDNAMEDataKeyUsingSetDataBatch()
+        public
+    {
+        // Setting up arrays for multiple tokens
+        bytes32[] memory tokenIds = new bytes32[](1);
+        tokenIds[0] = keccak256("token3");
+
+        bytes32[] memory dataKeys = new bytes32[](1);
+        dataKeys[0] = LYX_REGISTRAR_TOKENID_NAME;
+
+        bytes[] memory dataValues = new bytes[](1);
+        dataValues[0] = abi.encodePacked("token3");
+
+        vm.prank(address(0x123));
+        lyxRegistrar.setDataBatchForTokenIds(tokenIds, dataKeys, dataValues);
+
+        // Verify the data set for each token
+        for (uint i = 0; i < tokenIds.length; i++) {
+            bytes memory fetchedData = lyxRegistrar.getDataForTokenId(
+                tokenIds[i],
+                dataKeys[i]
+            );
+            assertEq(fetchedData, dataValues[i]);
+        }
+    }
+
     function testAuthorizedAddressCanUnregisterDomain() public {
         bytes32 labelHash = keccak256("domainToUnregister");
         uint256 registrationDuration = 365 days;
@@ -1019,6 +1045,81 @@ contract LYXRegistrarTest is Test {
             dataKeys
         );
         assertEq(fetchedData[0], "");
+    }
+
+    function testUnregistrationTimestampResetOnTransfer() public {
+        address controller = address(this);
+        bytes32 labelHash = keccak256("toBeUnregisered");
+        uint256 registrationDuration = 365 days;
+        address domainOwner = address(0x123);
+        address newDomainOwner = address(0x456);
+
+        lyxRegistrar.addController(controller);
+
+        // Controller registers the domain
+        uint256 initialDuration = lyxRegistrar.register(
+            labelHash,
+            domainOwner,
+            "",
+            address(0),
+            new bytes32[](0),
+            new bytes[](0),
+            registrationDuration
+        );
+
+        vm.prank(domainOwner);
+        lyxRegistrar.unregister(labelHash);
+
+        vm.warp(block.timestamp + 2500);
+        vm.prank(domainOwner);
+        lyxRegistrar.transfer(domainOwner, newDomainOwner, labelHash, true, "");
+
+        vm.prank(newDomainOwner);
+        lyxRegistrar.unregister(labelHash);
+
+        assertEq(lyxRegistrar.nameExpires(labelHash), initialDuration);
+    }
+
+    function testUnregistrationTimestampResetOnNewRegistration() public {
+        address controller = address(this);
+        bytes32 labelHash = keccak256("toBeUnregisered");
+        uint256 registrationDuration = 365 days;
+        address domainOwner = address(0x123);
+        address newDomainOwner = address(0x456);
+
+        lyxRegistrar.addController(controller);
+
+        // Controller registers the domain
+        lyxRegistrar.register(
+            labelHash,
+            domainOwner,
+            "",
+            address(0),
+            new bytes32[](0),
+            new bytes[](0),
+            registrationDuration
+        );
+
+        vm.prank(domainOwner);
+        lyxRegistrar.unregister(labelHash);
+
+        vm.warp(block.timestamp + 366 days + 91 days);
+
+        // Controller registers the domain
+        uint256 newDuration = lyxRegistrar.register(
+            labelHash,
+            newDomainOwner,
+            "",
+            address(0),
+            new bytes32[](0),
+            new bytes[](0),
+            registrationDuration
+        );
+
+        vm.prank(newDomainOwner);
+        lyxRegistrar.unregister(labelHash);
+
+        assertEq(lyxRegistrar.nameExpires(labelHash), newDuration);
     }
 
     uint256 public constant GRACE_PERIOD = 90 days;
