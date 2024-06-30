@@ -7,8 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../Utils/StringUtils.sol";
 import "./ReverseRegistrarErrors.sol";
-import "../Resolver/IDefaultResolver.sol";
-import "../Resolver/ResolverConstants.sol";
+import {NameResolver} from "../resolvers/profiles/NameResolver.sol";
 
 /// @title Reverse Registrar
 /// @notice Manages reverse resolution records in a domain name system.
@@ -31,10 +30,8 @@ contract ReverseRegistrar is Ownable, IReverseRegistrar {
 
     /// @notice Initializes the contract with a specified UNS registry and default resolver.
     /// @param unsRegistry_ Address of the UNS Registry contract.
-    /// @param defaultResolver_ Address of the default resolver for reverse records.
-    constructor(address unsRegistry_, address defaultResolver_) {
+    constructor(address unsRegistry_) {
         _UNS_REGISTRY = unsRegistry_;
-        _defaultResolver = defaultResolver_;
     }
 
     /// @notice Checks if the caller is authorized.
@@ -61,6 +58,8 @@ contract ReverseRegistrar is Ownable, IReverseRegistrar {
             revert ReverseRegistrar_NotController(msg.sender);
         _;
     }
+
+    // Admin Functions
 
     /// @notice Returns the address of the UNS Registry.
     /// @dev Public function to get the UNS Registry address.
@@ -110,6 +109,8 @@ contract ReverseRegistrar is Ownable, IReverseRegistrar {
         emit DefaultResolverChanged(resolver);
     }
 
+    // Claim Functions
+
     /// @notice Claims a reverse record for the calling account.
     /// @dev Transfers ownership of the reverse record associated with the calling account.
     /// @param owner_ Address to set as the owner of the reverse record.
@@ -138,16 +139,14 @@ contract ReverseRegistrar is Ownable, IReverseRegistrar {
     function claimWithResolverData(
         address owner_,
         address resolver,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata _resolverData
     ) public returns (bytes32) {
         return
             claimForAddrWithResolverData(
                 msg.sender,
                 owner_,
                 resolver,
-                resolverDataKeys,
-                resolverDataValues
+                _resolverData
             );
     }
 
@@ -187,8 +186,7 @@ contract ReverseRegistrar is Ownable, IReverseRegistrar {
         address addr,
         address owner_,
         address resolver,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] memory _resolverData
     ) public override authorised(addr) returns (bytes32) {
         bytes32 labelHash = sha3HexAddress(addr);
         bytes32 reverseNode = keccak256(
@@ -203,9 +201,7 @@ contract ReverseRegistrar is Ownable, IReverseRegistrar {
                 owner_
             );
         } else {
-            if (
-                resolverDataKeys.length == 0 || resolverDataValues.length == 0
-            ) {
+            if (_resolverData.length == 0) {
                 IUNSRegistry(_UNS_REGISTRY).setSubNameRecord(
                     ADDR_REVERSE_NODE,
                     labelHash,
@@ -220,13 +216,45 @@ contract ReverseRegistrar is Ownable, IReverseRegistrar {
                     owner_,
                     resolver,
                     0,
-                    resolverDataKeys,
-                    resolverDataValues
+                    _resolverData
                 );
             }
         }
 
         return reverseNode;
+    }
+
+    function setName(string memory name) public returns (bytes32) {
+        return
+            setNameForAddr(
+                msg.sender,
+                msg.sender,
+                address(_defaultResolver),
+                name
+            );
+    }
+
+    function setNameForAddr(
+        address addr,
+        address _owner,
+        address resolver,
+        string memory name
+    ) public returns (bytes32) {
+        bytes[] memory resolverData = new bytes[](1);
+        resolverData[0] = abi.encodeWithSignature(
+            "setName(bytes32,string)",
+            node(addr),
+            name
+        );
+
+        bytes32 node_ = claimForAddrWithResolverData(
+            addr,
+            _owner,
+            resolver,
+            resolverData
+        );
+
+        return node_;
     }
 
     /// @notice Computes the node hash for a given account's reverse records.

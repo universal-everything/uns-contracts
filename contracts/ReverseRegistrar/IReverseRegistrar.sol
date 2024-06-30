@@ -53,8 +53,7 @@ interface IReverseRegistrar {
         address addr,
         address owner_,
         address resolver,
-        bytes32[] memory resolverDataKeys,
-        bytes[] memory resolverDataValues
+        bytes[] calldata resolverData
     ) external returns (bytes32);
     /// @notice Computes the node hash for a given address
     /// @dev This is a pure function; it does not read from or modify the state
