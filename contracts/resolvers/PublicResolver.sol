@@ -10,6 +10,7 @@ import "./profiles/InterfaceResolver.sol";
 import "./profiles/NameResolver.sol";
 import "./profiles/PubkeyResolver.sol";
 import "./profiles/TextResolver.sol";
+import "./profiles/ERC725YBasedResolver.sol";
 import "./Multicallable.sol";
 import {ReverseRegistrarContractClaimer} from "../ReverseRegistrar/ReverseContractClaimer.sol";
 
@@ -27,6 +28,7 @@ contract PublicResolver is
     NameResolver,
     PubkeyResolver,
     TextResolver,
+    ERC725YBasedResolver,
     ReverseRegistrarContractClaimer
 {
     /// @notice The UNS Registry contract address.
@@ -142,7 +144,8 @@ contract PublicResolver is
             InterfaceResolver,
             NameResolver,
             PubkeyResolver,
-            TextResolver
+            TextResolver,
+            ResolverBase
         )
         returns (bool)
     {

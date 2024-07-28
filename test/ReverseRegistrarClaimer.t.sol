@@ -5,21 +5,18 @@ import "forge-std/Test.sol";
 import "../contracts/ReverseRegistrar/ReverseRegistrar.sol";
 import "../contracts/ReverseRegistrar/ReverseContractClaimer.sol";
 import "../contracts/UNSRegistry/UNSRegistry.sol";
-import "../contracts/Resolver/DefaultResolver.sol";
+import "../contracts/resolvers/PublicResolver.sol";
 
 contract ReverseRegistrarClaimerTest is Test {
     ReverseRegistrar reverseRegistrar;
     UNSRegistry unsRegistry;
-    DefaultResolver defaultResolver;
+    PublicResolver defaultResolver;
     ReverseRegistrarContractClaimer reverseRegistrarClaimer;
 
     function setUp() public {
         unsRegistry = new UNSRegistry(address(this));
-        defaultResolver = new DefaultResolver(unsRegistry);
-        reverseRegistrar = new ReverseRegistrar(
-            address(unsRegistry),
-            address(defaultResolver)
-        );
+
+        reverseRegistrar = new ReverseRegistrar(address(unsRegistry));
 
         unsRegistry.setSubNameOwner(
             bytes32(0),
@@ -31,6 +28,9 @@ contract ReverseRegistrarClaimerTest is Test {
             keccak256(abi.encodePacked("addr")),
             address(reverseRegistrar)
         );
+
+        defaultResolver = new PublicResolver(unsRegistry);
+        reverseRegistrar.setDefaultResolver(address(defaultResolver));
     }
 
     function testReverseClaimerInitialization() public {

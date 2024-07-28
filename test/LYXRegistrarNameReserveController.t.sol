@@ -56,19 +56,43 @@ contract ReservedNamesControllerTest is Test {
 
         vm.prank(nonOwner);
         vm.expectRevert();
-        reservedNamesController.reserve(name, nonOwner, duration);
+        reservedNamesController.reserve(
+            name,
+            nonOwner,
+            duration,
+            address(0),
+            new bytes[](0)
+        );
     }
 
     function testNonOwnerCannotReserveMultipleNames() public {
         string[] memory names = new string[](2);
         names[0] = "nonownername1";
         names[1] = "nonownername2";
+        address[] memory owners = new address[](2);
+        owners[0] = address(0x123);
+        owners[1] = address(0x234);
+        uint256[] memory durations = new uint256[](2);
+        durations[0] = 365 days;
+        durations[1] = 365 days;
         address nonOwner = address(0xABC);
         uint256 duration = 365 days;
+        address[] memory resolvers = new address[](2);
+        resolvers[0] = address(0);
+        resolvers[1] = address(0);
+        bytes[][] memory resolverData = new bytes[][](2);
+        resolverData[0] = new bytes[](0);
+        resolverData[1] = new bytes[](0);
 
         vm.prank(nonOwner);
         vm.expectRevert();
-        reservedNamesController.reserve(names, nonOwner, duration);
+        reservedNamesController.reserve(
+            names,
+            owners,
+            durations,
+            resolvers,
+            resolverData
+        );
     }
 
     function testReserveSingleName() public {
@@ -76,7 +100,13 @@ contract ReservedNamesControllerTest is Test {
         address ownerOfReservedName = address(0x123);
         uint256 duration = 365 days;
 
-        reservedNamesController.reserve(name, ownerOfReservedName, duration);
+        reservedNamesController.reserve(
+            name,
+            ownerOfReservedName,
+            duration,
+            address(0),
+            new bytes[](0)
+        );
 
         bytes32 label = keccak256(bytes(name));
         assertEq(lyxRegistrar.tokenOwnerOf(label), ownerOfReservedName);
@@ -89,14 +119,30 @@ contract ReservedNamesControllerTest is Test {
         string[] memory names = new string[](2);
         names[0] = "batchname1";
         names[1] = "batchname2";
-        address ownerOfReservedNames = address(0x456);
-        uint256 duration = 365 days;
+        address[] memory owners = new address[](2);
+        owners[0] = address(0x123);
+        owners[1] = address(0x234);
+        uint256[] memory durations = new uint256[](2);
+        durations[0] = 365 days;
+        durations[1] = 365 days;
+        address[] memory resolvers = new address[](2);
+        resolvers[0] = address(0);
+        resolvers[1] = address(0);
+        bytes[][] memory resolverData = new bytes[][](2);
+        resolverData[0] = new bytes[](0);
+        resolverData[1] = new bytes[](0);
 
-        reservedNamesController.reserve(names, ownerOfReservedNames, duration);
+        reservedNamesController.reserve(
+            names,
+            owners,
+            durations,
+            resolvers,
+            resolverData
+        );
 
         for (uint256 i = 0; i < names.length; i++) {
             bytes32 label = keccak256(bytes(names[i]));
-            assertEq(lyxRegistrar.tokenOwnerOf(label), ownerOfReservedNames);
+            assertEq(lyxRegistrar.tokenOwnerOf(label), owners[i]);
         }
     }
 
@@ -108,7 +154,9 @@ contract ReservedNamesControllerTest is Test {
         reservedNamesController.reserve(
             name,
             address(reservedNamesController),
-            duration
+            duration,
+            address(0),
+            new bytes[](0)
         );
     }
 

@@ -12,20 +12,26 @@ contract UNSRegistryTest is Test {
     /// @notice Emitted when the owner of a name is changed.
     /// @param nameHash The nameHash that was updated.
     /// @param newOwner The new owner of the name.
-    event OwnerChanged(bytes32 indexed nameHash, address indexed newOwner);
+    event OwnerChanged(bytes32 indexed nameHash, address newOwner);
 
     /// @notice Emitted when the resolver for a name is changed.
     /// @param nameHash The nameHash that was updated.
     /// @param newResolver The new resolver of the name.
-    event ResolverChanged(
-        bytes32 indexed nameHash,
-        address indexed newResolver
-    );
+    event ResolverChanged(bytes32 indexed nameHash, address newResolver);
 
     /// @notice Emitted when the TTL of a name is changed.
     /// @param nameHash The nameHash that was updated.
     /// @param newTTL The updated Time to Live (TTL) value.
     event TTLChanged(bytes32 indexed nameHash, uint64 newTTL);
+
+    /// @notice Emitted when the owner of a name is changed.
+    /// @param nameHash The nameHash that was updated.
+    /// @param newOwner The new owner of the name.
+    event SubnNameOwnerChanged(
+        bytes32 indexed nameHash,
+        bytes32 indexed label,
+        address newOwner
+    );
 
     /// @notice Emitted when the owner of a name approves or revokes a new operator
     /// @param owner The address of the owner granting or revoking permission
@@ -47,7 +53,7 @@ contract UNSRegistryTest is Test {
 
         assertEq(record.owner, address(this));
         assertEq(record.resolver, address(0));
-        assertEq(record.ttl, type(uint64).max);
+        assertEq(record.ttl, 0);
     }
 
     function testSetRecordByRootOwner() public {
@@ -160,11 +166,19 @@ contract UNSRegistryTest is Test {
         dataValues[0] = "value1";
         dataValues[1] = "value2";
 
+        bytes[] memory resolverData = new bytes[](1);
+        resolverData[0] = abi.encodeWithSelector(
+            UNSRegistry_ResolverMock.setDataBatch.selector,
+            nameHash,
+            dataKeys,
+            dataValues
+        );
+
         // Set the resolver for the nameHash
         registry.setResolver(nameHash, mockResolver);
 
         // Act
-        registry.setResolverData(nameHash, dataKeys, dataValues);
+        registry.setResolverData(nameHash, resolverData);
 
         // Verify the data
         for (uint i = 0; i < dataKeys.length; i++) {
@@ -186,14 +200,21 @@ contract UNSRegistryTest is Test {
         bytes[] memory resolverDataValues = new bytes[](1);
         resolverDataValues[0] = abi.encodePacked("value");
 
+        bytes[] memory resolverData = new bytes[](1);
+        resolverData[0] = abi.encodeWithSelector(
+            UNSRegistry_ResolverMock.setDataBatch.selector,
+            nameHash,
+            resolverDataKeys,
+            resolverDataValues
+        );
+
         // Act
         registry.setRecordWithResolverData(
             nameHash,
             newOwner,
             newResolver,
             newTTL,
-            resolverDataKeys,
-            resolverDataValues
+            resolverData
         );
 
         // Check the record
@@ -256,14 +277,21 @@ contract UNSRegistryTest is Test {
         bytes[] memory resolverDataValues = new bytes[](1);
         resolverDataValues[0] = abi.encodePacked("value");
 
+        bytes[] memory resolverData = new bytes[](1);
+        resolverData[0] = abi.encodeWithSelector(
+            UNSRegistry_ResolverMock.setDataBatch.selector,
+            subNameHash,
+            resolverDataKeys,
+            resolverDataValues
+        );
+
         registry.setSubNameRecordWithResolverData(
             parentNameHash,
             subNameLabelHash,
             newOwner,
             newResolver,
             newTTL,
-            resolverDataKeys,
-            resolverDataValues
+            resolverData
         );
 
         IUNSRegistry.Record memory record = registry.record(subNameHash);
@@ -290,7 +318,7 @@ contract UNSRegistryTest is Test {
         address newOwner = address(0x789);
 
         vm.expectEmit(true, true, true, true);
-        emit OwnerChanged(subNameHash, newOwner);
+        emit SubnNameOwnerChanged(parentNameHash, subNameLabelHash, newOwner);
         registry.setSubNameOwner(parentNameHash, subNameLabelHash, newOwner);
 
         IUNSRegistry.Record memory record = registry.record(subNameHash);
@@ -353,11 +381,18 @@ contract UNSRegistryTest is Test {
         bytes[] memory resolverDataValues = new bytes[](1);
         resolverDataValues[0] = abi.encodePacked("value");
 
+        bytes[] memory resolverData = new bytes[](1);
+        resolverData[0] = abi.encodeWithSelector(
+            UNSRegistry_ResolverMock.setDataBatch.selector,
+            subNameHash,
+            resolverDataKeys,
+            resolverDataValues
+        );
+
         registry.setSubNameResolverData(
             parentNameHash,
             subNameLabelHash,
-            resolverDataKeys,
-            resolverDataValues
+            resolverData
         );
 
         bytes memory storedData = UNSRegistry_ResolverMock(newResolver).getData(

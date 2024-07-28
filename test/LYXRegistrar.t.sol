@@ -3,17 +3,19 @@ pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
 import "../contracts/UNSRegistry/UNSRegistry.sol";
+import "../contracts/ReverseRegistrar/ReverseRegistrar.sol";
 import "../contracts/UNSRegistry/IUNSRegistry.sol";
-import "../contracts/Resolver/DefaultResolver.sol";
+import "../contracts/resolvers/PublicResolver.sol";
 import "@lukso/lsp-smart-contracts/contracts/LSP4DigitalAssetMetadata/LSP4Constants.sol";
 import "../contracts/LYXRegistrar/LYXRegistrar.sol";
 import "./Mocks/UnlimitedGasLSP1.sol";
 import "./Mocks/ReverterLSP1.sol";
 
 contract LYXRegistrarTest is Test {
+    ReverseRegistrar reverseRegistrar;
     UNSRegistry unsRegistry;
     LYXRegistrar public lyxRegistrar;
-    DefaultResolver public defaultResolver;
+    PublicResolver public defaultResolver;
     bytes32 constant LYX_NAMEHASH =
         keccak256(abi.encodePacked(bytes32(0), keccak256("lyx")));
 
@@ -21,8 +23,22 @@ contract LYXRegistrarTest is Test {
         // Deploy UNS Registry
         unsRegistry = new UNSRegistry(address(this));
 
+        reverseRegistrar = new ReverseRegistrar(address(unsRegistry));
+
+        unsRegistry.setSubNameOwner(
+            bytes32(0),
+            keccak256(abi.encodePacked("reverse")),
+            address(this)
+        );
+        unsRegistry.setSubNameOwner(
+            0xa097f6721ce401e757d1223a763fef49b8b5f90bb18567ddb86fd205dff71d34,
+            keccak256(abi.encodePacked("addr")),
+            address(reverseRegistrar)
+        );
+
         // Deploy Default Resolver
-        defaultResolver = new DefaultResolver(unsRegistry);
+        defaultResolver = new PublicResolver(unsRegistry);
+        reverseRegistrar.setDefaultResolver(address(defaultResolver));
 
         // Deploy LYXRegistrar contract
         lyxRegistrar = new LYXRegistrar(
@@ -79,7 +95,6 @@ contract LYXRegistrarTest is Test {
             nonController,
             "",
             address(0),
-            new bytes32[](1),
             new bytes[](1),
             duration
         );
@@ -100,7 +115,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             duration
         );
@@ -133,7 +147,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             duration
         );
@@ -145,7 +158,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             duration
         );
@@ -165,7 +177,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             initialDuration
         );
@@ -185,7 +196,6 @@ contract LYXRegistrarTest is Test {
             newOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             initialDuration
         );
@@ -212,7 +222,6 @@ contract LYXRegistrarTest is Test {
             initialOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -228,7 +237,6 @@ contract LYXRegistrarTest is Test {
             newOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -248,7 +256,6 @@ contract LYXRegistrarTest is Test {
             initialOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -275,7 +282,6 @@ contract LYXRegistrarTest is Test {
             initialOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -305,7 +311,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             initialDuration
         );
@@ -338,7 +343,6 @@ contract LYXRegistrarTest is Test {
             controller,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -363,7 +367,6 @@ contract LYXRegistrarTest is Test {
             controller,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -390,7 +393,6 @@ contract LYXRegistrarTest is Test {
             controller,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -418,7 +420,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -445,7 +446,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -474,7 +474,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -507,7 +506,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -528,7 +526,6 @@ contract LYXRegistrarTest is Test {
             random,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -550,7 +547,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -589,7 +585,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -613,7 +608,6 @@ contract LYXRegistrarTest is Test {
             newOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -636,7 +630,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -649,7 +642,6 @@ contract LYXRegistrarTest is Test {
             newDomainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -672,7 +664,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -685,7 +676,6 @@ contract LYXRegistrarTest is Test {
             newDomainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -747,7 +737,6 @@ contract LYXRegistrarTest is Test {
             initialOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -933,7 +922,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -968,7 +956,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(defaultResolver),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -992,14 +979,21 @@ contract LYXRegistrarTest is Test {
 
         lyxRegistrar.addController(address(this));
 
+        bytes[] memory resolverData = new bytes[](1);
+        resolverData[0] = abi.encodeWithSelector(
+            defaultResolver.setDataBatch.selector,
+            node(labelHash),
+            dataKeys,
+            dataValues
+        );
+
         // Register the domain with a resolver and data keys
         lyxRegistrar.register(
             labelHash,
             domainOwner,
             "",
             address(defaultResolver),
-            dataKeys,
-            dataValues,
+            resolverData,
             registrationDuration
         );
 
@@ -1023,28 +1017,26 @@ contract LYXRegistrarTest is Test {
         bytes[] memory dataValues = new bytes[](0);
         dataKeys[0] = keccak256("key1");
 
+        bytes[] memory resolverData = new bytes[](1);
+        resolverData[0] = abi.encodeWithSelector(
+            defaultResolver.setDataBatch.selector,
+            node(labelHash),
+            dataKeys,
+            dataValues
+        );
+
         lyxRegistrar.addController(address(this));
 
         // Register the domain with a resolver and data keys
+        vm.expectRevert("Data keys and values lengths do not match");
         lyxRegistrar.register(
             labelHash,
             domainOwner,
             "",
             address(defaultResolver),
-            dataKeys,
-            dataValues,
+            resolverData,
             registrationDuration
         );
-
-        address owner = unsRegistry.owner(node(labelHash));
-        address resolver = unsRegistry.resolver(node(labelHash));
-        assertEq(owner, domainOwner);
-        assertEq(resolver, address(defaultResolver));
-        bytes[] memory fetchedData = defaultResolver.getDataBatch(
-            node(labelHash),
-            dataKeys
-        );
-        assertEq(fetchedData[0], "");
     }
 
     function testUnregistrationTimestampResetOnTransfer() public {
@@ -1062,7 +1054,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -1095,7 +1086,6 @@ contract LYXRegistrarTest is Test {
             domainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );
@@ -1111,7 +1101,6 @@ contract LYXRegistrarTest is Test {
             newDomainOwner,
             "",
             address(0),
-            new bytes32[](0),
             new bytes[](0),
             registrationDuration
         );

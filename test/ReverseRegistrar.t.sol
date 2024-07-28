@@ -4,20 +4,17 @@ pragma solidity >=0.8.4;
 import "forge-std/Test.sol";
 import "../contracts/ReverseRegistrar/ReverseRegistrar.sol";
 import "../contracts/UNSRegistry/UNSRegistry.sol";
-import "../contracts/Resolver/DefaultResolver.sol";
+import "../contracts/resolvers/PublicResolver.sol";
+import "../contracts/resolvers/profiles/NameResolver.sol";
 
 contract ReverseRegistrarTest is Test {
     ReverseRegistrar reverseRegistrar;
     UNSRegistry unsRegistry;
-    DefaultResolver defaultResolver;
+    PublicResolver defaultResolver;
 
     function setUp() public {
         unsRegistry = new UNSRegistry(address(this));
-        defaultResolver = new DefaultResolver(unsRegistry);
-        reverseRegistrar = new ReverseRegistrar(
-            address(unsRegistry),
-            address(defaultResolver)
-        );
+        reverseRegistrar = new ReverseRegistrar(address(unsRegistry));
 
         unsRegistry.setSubNameOwner(
             bytes32(0),
@@ -29,6 +26,9 @@ contract ReverseRegistrarTest is Test {
             keccak256(abi.encodePacked("addr")),
             address(reverseRegistrar)
         );
+
+        defaultResolver = new PublicResolver(unsRegistry);
+        reverseRegistrar.setDefaultResolver(address(defaultResolver));
     }
 
     function testClaim() public {
@@ -89,18 +89,19 @@ contract ReverseRegistrarTest is Test {
 
     function testClaimForAddrWithResolverData() public {
         address owner = address(this);
-
-        bytes32[] memory resolverDataKeys = new bytes32[](1);
-        resolverDataKeys[0] = bytes32("key");
-        bytes[] memory resolverDataValues = new bytes[](1);
-        resolverDataValues[0] = abi.encodePacked("value");
+        string memory nameToBeSet = "name";
+        bytes[] memory resolverData = new bytes[](1);
+        resolverData[0] = abi.encodeWithSelector(
+            NameResolver.setName.selector,
+            node(owner),
+            nameToBeSet
+        );
 
         bytes32 reverseNode = reverseRegistrar.claimForAddrWithResolverData(
             owner,
             owner,
             address(defaultResolver),
-            resolverDataKeys,
-            resolverDataValues
+            resolverData
         );
 
         address retrievedResolver = unsRegistry.resolver(reverseNode);
@@ -113,15 +114,8 @@ contract ReverseRegistrarTest is Test {
         );
 
         // Retrieve resolver data and verify
-        bytes memory retrievedData = defaultResolver.getData(
-            reverseNode,
-            resolverDataKeys[0]
-        );
-        assertEq(
-            retrievedData,
-            resolverDataValues[0],
-            "Resolver data should match"
-        );
+        string memory retreivedName = defaultResolver.name(node(owner));
+        assertEq(retreivedName, nameToBeSet, "Resolver data should match");
     }
 
     function testClaimWithDifferentAddressShouldFail() public {
